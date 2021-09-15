@@ -712,55 +712,66 @@ end)
 RegisterServerEvent('qb-phone:server:UpdateMessages')
 AddEventHandler('qb-phone:server:UpdateMessages', function(ChatMessages, ChatNumber, New)
     local src = source
-    local SenderData = ESX.GetPlayerFromId(src)
     local SenderCharacter = GetCharacter(src)
-
+    local SenderData = ESX.GetPlayerFromId(src)
     ExecuteSql(false, "SELECT * FROM `users` WHERE `phone`='"..ChatNumber.."'", function(Player)
         if Player[1] ~= nil then
             local TargetData = ESX.GetPlayerFromIdentifier(Player[1].identifier)
+            SenderPhone = getPhoneNumber(SenderData.identifier)
+            TargetPhone = getPhoneNumber(Player[1].identifier)
 
             if TargetData ~= nil then
                 ExecuteSql(false, "SELECT * FROM `phone_messages` WHERE `identifier` = '"..SenderData.identifier.."' AND `number` = '"..ChatNumber.."'", function(Chat)
                     if Chat[1] ~= nil then
                         -- Update for target
-                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..TargetData.identifier.."' AND `number` = '"..SenderCharacter.phone.."'")
+                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..Player[1].identifier.."' AND `number` = '"..SenderPhone.."'")
                                 
                         -- Update for sender
-                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..SenderData.identifier.."' AND `number` = '"..SenderCharacter.phone.."'")
+                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..SenderData.identifier.."' AND `number` = '"..TargetPhone.."'")
                     
                         -- Send notification & Update messages for target
-                        TriggerClientEvent('qb-phone:client:UpdateMessages', TargetData.source, ChatMessages, SenderCharacter.phone, false)
+                        TriggerClientEvent('qb-phone:client:UpdateMessages', TargetData.source, ChatMessages, ChatNumber, false)
                     else
                         -- Insert for target
-                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..TargetData.identifier.."', '"..SenderCharacter.phone.."', '"..json.encode(ChatMessages).."')")
+                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..Player[1].identifier.."', '"..SenderPhone.."', '"..json.encode(ChatMessages).."')")
                                             
                         -- Insert for sender
-                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..SenderData.identifier.."', '"..SenderCharacter.phone.."', '"..json.encode(ChatMessages).."')")
+                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..SenderData.identifier.."', '"..TargetPhone.."', '"..json.encode(ChatMessages).."')")
 
                         -- Send notification & Update messages for target
-                        TriggerClientEvent('qb-phone:client:UpdateMessages', TargetData.source, ChatMessages, SenderCharacter.phone, true)
+                        TriggerClientEvent('qb-phone:client:UpdateMessages', TargetData.source, ChatMessages, ChatNumber, true)
                     end
                 end)
             else
                 ExecuteSql(false, "SELECT * FROM `phone_messages` WHERE `identifier` = '"..SenderData.identifier.."' AND `number` = '"..ChatNumber.."'", function(Chat)
                     if Chat[1] ~= nil then
                         -- Update for target
-                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..Player[1].identifier.."' AND `number` = '"..SenderCharacter.phone.."'")
+                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..Player[1].identifier.."' AND `number` = '"..SenderPhone.."'")
                                 
                         -- Update for sender
-                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..SenderData.identifier.."' AND `number` = '"..Player[1].phone.."'")
+                        ExecuteSql(false, "UPDATE `phone_messages` SET `messages` = '"..json.encode(ChatMessages).."' WHERE `identifier` = '"..SenderData.identifier.."' AND `number` = '"..TargetPhone.."'")
                     else
                         -- Insert for target
-                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..Player[1].identifier.."', '"..SenderCharacter.phone.."', '"..json.encode(ChatMessages).."')")
+                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..Player[1].identifier.."', '"..SenderPhone.."', '"..json.encode(ChatMessages).."')")
                         
                         -- Insert for sender
-                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..SenderData.identifier.."', '"..Player[1].phone.."', '"..json.encode(ChatMessages).."')")
+                        ExecuteSql(false, "INSERT INTO `phone_messages` (`identifier`, `number`, `messages`) VALUES ('"..SenderData.identifier.."', '".. TargetPhone .."', '"..json.encode(ChatMessages).."')")
                     end
                 end)
             end
         end
     end)
 end)
+
+function getPhoneNumber(identifier)
+	local result = MySQL.Sync.fetchAll("SELECT users.phone FROM users WHERE users.identifier = @identifier", {
+		['@identifier'] = identifier
+	})
+	if result[1] ~= nil then
+		return result[1].phone
+	end
+	return nil
+end
 
 RegisterServerEvent('qb-phone:server:AddRecentCall')
 AddEventHandler('qb-phone:server:AddRecentCall', function(type, data)
